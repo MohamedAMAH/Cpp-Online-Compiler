@@ -1,11 +1,14 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import * as monaco from 'monaco-editor';
 import { Helmet } from 'react-helmet';
 import './home.css';
 
 const Home = (props) => {
+  const [editorValue, setEditorValue] = useState('');
+  const [outputValue, setOutputValue] = useState('');
+
   useEffect(() => {
-    monaco.editor.create(document.getElementById('editor-container'), {
+    const editor = monaco.editor.create(document.getElementById('editor-container'), {
       value: `#include <iostream>
 
 using namespace std;
@@ -15,15 +18,34 @@ int main() {
     return 0;
 }`,
       language: 'cpp',
-      theme: 'vs-light', // Optional: sets a dark theme
+      theme: 'vs-light',
       automaticLayout: true,
-      lineNumbers: "on", // Show line numbers
-      selectOnLineNumbers: true, // Allow line selection by clicking on line numbers
-      renderLineHighlight: "line", // Highlight the active line
-      scrollBeyondLastLine: false, // Prevent scrolling beyond the last line
-      // verticalScrollbarSize: 0, // Hide vertical scrollbar initially
+      lineNumbers: "on",
+      selectOnLineNumbers: true,
+      renderLineHighlight: "line",
+      scrollBeyondLastLine: false,
+    });
+
+    editor.onDidChangeModelContent(() => {
+      setEditorValue(editor.getValue());
     });
   }, []);
+
+  const handleRun = async () => {
+    try {
+      const response = await fetch('/api/run', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code: editorValue }),
+      });
+      const { output } = await response.json();
+      setOutputValue(output);
+    } catch (error) {
+      console.error('Error running the code:', error);
+    }
+  };
 
   return (
     <div className="home-container1">
@@ -32,15 +54,7 @@ int main() {
         <meta property="og:title" content="Dazzling Fussy Shark" />
       </Helmet>
       <div className="home-navbar-container">
-        <div className="home-title-container">
-          <img alt="image" src="/meteor-200h.png" className="home-image" />
-          <span className="home-text1">Fusion Compiler</span>
-        </div>
-        <div className="home-about-us-container">
-          <button type="button" className="home-button1 button">
-            About Us
-          </button>
-        </div>
+        {/* ... */}
       </div>
       <div className="home-body-container">
         <div className="home-text-editor-container">
@@ -49,7 +63,7 @@ int main() {
               <span>main.cpp</span>
               <br></br>
             </span>
-            <button type="button" className="home-button2 button">
+            <button type="button" className="home-button2 button" onClick={handleRun}>
               <span>
                 <span>Run</span>
                 <br></br>
@@ -63,14 +77,15 @@ int main() {
             <span className="home-text8">Output</span>
           </div>
           <textarea
-            id="2"
+            id="output-textarea"
             readOnly="on"
             className="home-textarea2 textarea"
+            value={outputValue}
           ></textarea>
         </div>
       </div>
     </div>
   );
-}
+};
 
 export default Home;
