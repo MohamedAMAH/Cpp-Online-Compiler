@@ -4,19 +4,21 @@ import { Helmet } from 'react-helmet';
 import './home.css';
 
 const Home = (props) => {
-  const [editorValue, setEditorValue] = useState('');
-  const [outputValue, setOutputValue] = useState('');
-
-  useEffect(() => {
-    const editor = monaco.editor.create(document.getElementById('editor-container'), {
-      value: `#include <iostream>
+  const defaultCode = `#include <iostream>
 
 using namespace std;
 
 int main() {
     cout << "Fusion" << endl;
     return 0;
-}`,
+}`;
+
+  const [editorValue, setEditorValue] = useState(defaultCode);
+  const [outputValue, setOutputValue] = useState('');
+
+  useEffect(() => {
+    const editor = monaco.editor.create(document.getElementById('editor-container'), {
+      value: defaultCode,
       language: 'cpp',
       theme: 'vs-light',
       automaticLayout: true,
@@ -54,7 +56,15 @@ int main() {
         <meta property="og:title" content="Dazzling Fussy Shark" />
       </Helmet>
       <div className="home-navbar-container">
-        {/* ... */}
+        <div className="home-title-container">
+          <img alt="image" src="/meteor-200h.png" className="home-image" />
+          <span className="home-text1">Fusion Compiler</span>
+        </div>
+        <div className="home-about-us-container">
+          <button type="button" className="home-button1 button">
+            About Us
+          </button>
+        </div>
       </div>
       <div className="home-body-container">
         <div className="home-text-editor-container">
