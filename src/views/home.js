@@ -9,7 +9,7 @@ const Home = (props) => {
 using namespace std;
 
 int main() {
-    cout << "Fusion" << endl;
+    cout << "Fusion!!" << endl;
     return 0;
 }`;
 
@@ -49,6 +49,23 @@ int main() {
     }
   };
 
+  const handleClear = async () => {
+    try {
+      const response = await fetch('/api/clear', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      const data = await response.json();
+      if (data.message === 'Output cleared') {
+        setOutputValue('');
+      }
+    } catch (error) {
+      console.error('Error clearing the output:', error);
+    }
+  };
+
   return (
     <div className="home-container1">
       <Helmet>
@@ -83,8 +100,17 @@ int main() {
           <div id="editor-container" className="editor-container"></div>
         </div>
         <div className="home-console-container">
-          <div className="home-container3">
-            <span className="home-text8">Output</span>
+        <div className="home-container3">
+            <span className="home-text8">
+              <span>Output</span>
+              <br></br>
+            </span>
+            <button type="button" className="home-button3 button" onClick={handleClear}>
+              <span>
+                <span>Clear</span>
+                <br></br>
+              </span>
+            </button>
           </div>
           <textarea
             id="output-textarea"

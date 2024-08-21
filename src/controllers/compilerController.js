@@ -5,7 +5,7 @@ const docker = new Docker();
 
 exports.run = async (req, res) => {
     console.log('Run function called');
-  
+
     // Get the code from the request body
     const code = req.body.code;
     console.log('Received code:', code);
@@ -52,25 +52,41 @@ exports.run = async (req, res) => {
             output += chunk.toString();
         });
 
+        stream.on('end', () => {
+            console.log('Output from stream:', output);
+        });
+
         // Wait for the container to finish execution
         await container.wait();
 
         // Remove the container
         await container.remove();
 
-        // Return the output back to the client
-        res.json({ output });
+        // Remove the specific SOH character (☺ or \x01)
+        // const cleanedOutput = output.replace(/\x01/g, '');
+
+        // Clean the output: Remove null characters and trim whitespace
+        const cleanedOutput = output
+            .replace(/\x00/g, '') // Remove all null characters
+            .replace(/^[\s\x01-\x1F\x7F]+/g, '') // Remove leading control characters and whitespace
+            .replace(/[\s\x01-\x1F\x7F]+$/g, ''); // Remove trailing control characters and whitespace
+
+        console.log('hey: ', {cleanedOutput});
+
+        // Return the cleaned output back to the client
+        res.json({ output: cleanedOutput });
     } catch (error) {
         console.error('Error running the container:', error);
         res.status(500).json({ error: 'Error running the code in the container' });
     } finally {
-        // Clean up the temp directory
-        fs.unlinkSync(filePath);
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            console.log(`Temp file ${filePath} deleted successfully.`);
+        }
     }
 };
 
 exports.clear = (req, res) => {
     console.log('Clear function called');
-    // Add your logic to clear the output
-    res.json({ message: 'Output cleared' });
+    res.json({ message: 'Output cleared', output: '' });
 };
