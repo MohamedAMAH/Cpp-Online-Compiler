@@ -7,13 +7,16 @@
     "@monaco-editor/react": "^4.6.0",
     "cookie-parser": "^1.4.6",
     "dockerode": "^4.0.2",
+    "express": "^4.19.2",
     "express-session": "^1.18.0",
     "monaco-editor": "^0.50.0",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-helmet": "^6.1.0",
     "react-router-dom": "^5.2.0",
+    "stream-to-promise": "^3.0.0",
     "strip-ansi": "^7.1.0",
+    "tar": "^7.4.3",
     "xterm": "^5.3.0",
     "xterm-addon-attach": "^0.9.0",
     "xterm-addon-fit": "^0.8.0"
@@ -21,6 +24,7 @@
   "scripts": {
     "start": "craco start",
     "build": "craco build",
+    "clean": "rimraf dist",
     "test": "craco test --env=jsdom",
     "eject": "craco eject"
   },
@@ -38,8 +42,5 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  },
-  "devDependencies": {
-    "react-scripts": "^5.0.1"
   }
 }

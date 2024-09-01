@@ -5,6 +5,6 @@ const compilerController = require('../controllers/compilerController');
 router.post('/run', compilerController.run);
 // router.post('/clear', compilerController.clear);
 router.post('/input', compilerController.handleInput);
-router.post('/cleanup', compilerController.cleanup);
+// router.post('/cleanup', compilerController.cleanup);
 
 module.exports = router;
