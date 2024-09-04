@@ -1,5 +1,5 @@
 const { codeRequiresInput } = require('../utils/codeChecker');
-const { runOneTimeContainer, runPersistentContainer, runn00b, runCodeWithInput, runInteractiveContainerContinuousOutput, runContainerWithInput, runOneTimeContainerWithInput, sendInputToContainer, runOneTimeContainerPartialOutput, runContainerWithInputList, runOneTimeContainerWithMultipleInputs, runInteractiveContainer, run7oda, runInteractiveContainerFirstOutput, runSexyContainer, runInteractiveeeContainer, runContainer, runlolContainer, runNewContainer, runInteractiveContainerFullOutput, runInteractiveContainerFullOutputInspect, runTrial, runWithInput } = require('../services/docker');
+const { runOneTimeContainer, runPersistentContainer, runn00b, runCodeWithInput, runInteractiveContainerContinuousOutput, runContainerWithInput, runOneTimeContainerWithInput, sendInputToContainer, runOneTimeContainerPartialOutput, runContainerWithInputList, runOneTimeContainerWithMultipleInputs, runInteractiveContainer, run7oda, runInteractiveContainerFirstOutput, runSexyContainer, runInteractiveeeContainer, runContainer, runlolContainer, runNewContainer, runInteractiveContainerFullOutput, runInteractiveContainerFullOutputInspect, runTrial, runWithInput, runXD, runWithXD, runXDD, runIsa, runIsaIsa, runCPU, runNewIsa } = require('../services/docker');
 const fs = require('fs').promises;
 const stream = require('stream');
 const pattern = /01000000000000.{2}/g;
@@ -15,8 +15,7 @@ exports.run = async (req, res) => {
   }
 
   try {
-    let requiresInput = codeRequiresInput(code);
-    const input = 'Hey'
+    const requiresInput = codeRequiresInput(code);
     if (requiresInput) {
       if (activeContainers[sessionID]) {
         // container = activeContainers[sessionID];
@@ -44,7 +43,7 @@ exports.handleInput = async (req, res) => {
   try {
     if (activeContainers[sessionID]) {
       container = activeContainers[sessionID];
-      ({ output, requiresInput } = await runWithInput(container, input));
+      ({ output, requiresInput } = await runIsaIsa(container, input, false));
     } else {
       res.status(400).json({ error: 'Error processing input. Please refresh and try again.' });
       // ({ output, container } = await runInteractiveContainerFirstOutput(code));

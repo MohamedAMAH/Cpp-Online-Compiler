@@ -189,3 +189,31 @@
 .monaco-editor .view-line-focused {
   background-color: #2e2e2e !important; /* Dark grey background for the active line */
 }
+
+.terminal-container {
+  width: 100%;
+  height: 100%;
+  background-color: #444444;
+  overflow-y: hidden; /* Hide scrollbar by default */
+}
+
+.terminal-container:hover {
+  overflow-y: auto; /* Show scrollbar on hover */
+}
+
+.xterm {
+  height: 100%;
+  width: 100%;
+  padding-top: 1%;
+  padding-left: 1%;
+  overflow-y: hidden; /* Ensures no scrollbar is visible by default */
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar {
+  width: 0px; /* Removes scrollbar width */
+  background: transparent; /* Optional: Transparent background */
+}
+
+.xterm-viewport {
+  overflow-y: hidden; /* Hides scrollbar unless hovering */
+}

@@ -18,8 +18,13 @@ const os = require('os');
 // const util = require('util');
 // const { promisify } = require('util');
 const childProcess = require('child_process');
-const execAsync = promisify(childProcess.exec);
+// const execAsync = promisify(childProcess.exec);
 const INITIALIZATION_MESSAGE = '{"stream":true,"stdin":true,"stdout":true,"stderr":true,"logs":true,"hijack":true}';
+const regex = new RegExp(INITIALIZATION_MESSAGE, 'g');
+const util = require('util');
+// const exec = util.promisify(require('child_process').exec);
+const { execSync } = require('child_process'); // Ensure you require 'child_process' for execSync
+
 
 
 // const createTempFile = async (code) => {
@@ -341,29 +346,262 @@ exports.runInteractiveContainerFullOutputInspect = async (code) => {
 //   });
 // };
 
-exports.runn00b = async (code) => {
+exports.runXD = async (code) => {
   const { tmpDir, filePath } = await createTempFile(code);
 
-  // Create Docker container with strace to run the C++ program
   const container = await docker.createContainer({
-    Image: 'cpp-compiler11', // Use the image built from Dockerfile
+    Image: 'cpp-compiler11',
     Tty: true,
-    Cmd: ['bash', '-c', `g++ -o program /usr/src/app/main.cpp && strace -o /tmp/strace.log ./program`],
+    Cmd: ['bash', '-c', `g++ -o program /usr/src/app/main.cpp && ./program &> /usr/src/app/output.txt`],
     HostConfig: {
-      Binds: [`${tmpDir}:/usr/src/app`] // Bind the temp directory to /usr/src/app in the container
+      Binds: [`${tmpDir}:/usr/src/app`]
     },
     OpenStdin: true,
     StdinOnce: false
   });
 
-  console.log('Container created. Inspecting...');
-  let inspect = await container.inspect();
-  console.log('Initial state:', inspect.State.Status);
+  await container.start();
+  console.log('Container started');
 
+  // Retrieve output from the file
+  const exec = await container.exec({
+    Cmd: ['cat', '/usr/src/app/output.txt'],
+    AttachStdout: true,
+    AttachStderr: true
+  });
+
+  const stream = await exec.start({hijack: true, stdin: true});
+  let output = '';
+
+  stream.on('data', (chunk) => {
+    output += chunk.toString();
+  });
+
+  await new Promise((resolve) => {
+    stream.on('end', () => resolve());
+  });
+
+  return { output, container };
+};
+
+exports.runXDD = async (code) => {
+  const { tmpDir, filePath } = await createTempFile(code);
+
+  // Create the container
+  const container = await docker.createContainer({
+    Image: 'cpp-compiler11',
+    Tty: true,
+    Cmd: ['bash', '-c', `g++ -o program /usr/src/app/main.cpp`],  // Just compile here
+    HostConfig: {
+      Binds: [`${tmpDir}:/usr/src/app`]
+    },
+    OpenStdin: true,
+    StdinOnce: false
+  });
+
+  await container.start();
+  console.log('Container started');
+
+  // Now run the program separately and pipe the output with 'tee'
+  const execRunProgram = await container.exec({
+    Cmd: ['bash', '-c', './program | tee /usr/src/app/output.log'], // Run program and use 'tee' here
+    AttachStdout: true,
+    AttachStderr: true
+  });
+
+  // Start the exec and wait for it to complete
+  await execRunProgram.start({hijack: true, stdin: true});
+
+  // Fetch the output from the output.log file
+  const execFetchLog = await container.exec({
+    Cmd: ['cat', '/usr/src/app/output.log'],
+    AttachStdout: true,
+    AttachStderr: true
+  });
+
+  const logStream = await execFetchLog.start({hijack: true, stdin: true});
+  let output = '';
+
+  logStream.on('data', (chunk) => {
+    output += chunk.toString();
+  });
+
+  await new Promise((resolve) => {
+    logStream.on('end', () => resolve());
+  });
+
+  return { output, container };
+};
+
+
+exports.runWithXD = async (container, input) => {
+
+  let requiresInput = true
+  // Attach to the container to send input
+  const stream = await container.attach({
+    stream: true,
+    stdin: true,
+    stdout: true,
+    stderr: true,
+    logs: true,
+    hijack: true
+  });
+
+  // Write input to the container and end the stream
+  await stream.write(input + '\n');
+  await stream.end();
+
+  // Execute the program and capture output to a file using 'tee'
+  const exec = await container.exec({
+    Cmd: ['bash', '-c', './program | tee /usr/src/app/output.log'],
+    AttachStdout: true,
+    AttachStderr: true
+  });
+  await exec.start({ hijack: true });
+
+  // Retrieve and return the output from the file
+  const execOutput = await container.exec({
+    Cmd: ['cat', '/usr/src/app/output.log'],
+    AttachStdout: true,
+    AttachStderr: true
+  });
+
+  const outputStream = await execOutput.start({ hijack: true });
+  let output = '';
+
+  outputStream.on('data', (chunk) => {
+    output += chunk.toString();
+  });
+
+  await new Promise((resolve) => {
+    outputStream.on('end', () => resolve());
+  });
+
+  return { output, requiresInput };
+};
+
+exports.runIsaIsa = async (container, input, clearLogs = false) => {
+  let output = '';
+  let waitingForInput = false;
+  let requiresInput = true;
+
+  if (clearLogs) {
+    try {
+      const containerName = container.id;
+      execSync(`docker logs ${containerName} --tail 0 > NUL 2>&1`);
+      console.log('Logs cleared for container:', containerName);
+    } catch (error) {
+      console.error('Error clearing logs:', error);
+    }
+  }
+
+  const stream = await container.attach({
+    stream: true,
+    stdin: true,
+    stdout: true,
+    stderr: true,
+    logs: true,
+    hijack: true
+  });
+
+  const inputTimestamp = Date.now();
+  await stream.write(input);
+  await stream.write('\n');
+  await stream.end();
+
+  await sleep(200);
+
+  const captureOutput = new Promise((resolve) => {
+    stream.on('data', (chunk) => {
+      const chunkString = chunk.toString('utf8');
+      const timestamp = Date.now();
+      
+      if (timestamp > inputTimestamp) {
+        const formattedChunk = `${chunkString}`;
+        output += formattedChunk;
+        console.log('Stream output:', formattedChunk);
+      }
+    });
+
+    stream.on('end', () => {
+      console.log('Stream ended');
+      resolve();
+    });
+
+    stream.on('error', (err) => {
+      console.error('Stream error:', err);
+      resolve();
+    });
+  });
+
+  const monitorStackTrace = async () => {
+    while (!waitingForInput) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      const inspect = await container.inspect();
+      if (inspect.State.Status !== 'running') {
+        console.log('Container is not running.');
+        waitingForInput = false;
+        return;
+      } else {
+        const logContent = await execCommandInContainer(container, 'cat /tmp/strace.log');
+        const lines = logContent.trim().split('\n');
+        const lastLine = lines[lines.length - 1];
+        if (lastLine.includes('read(0,' || lastLine.includes('EAGAIN'))) {
+          console.log('The last line of the log indicates the process might be waiting for input.');
+          waitingForInput = true;
+          return;
+        }
+        // console.log('Log content:', logContent);
+        // if (logContent.includes('read(0,') || logContent.includes('EAGAIN')) {
+        //   console.log('Process is likely waiting for input.');
+        //   waitingForInput = true;
+        //   return;
+        // }
+      }
+    }
+  };
+
+  await Promise.all([captureOutput, monitorStackTrace()]);
+
+  await stream.destroy();
+
+  if (waitingForInput) {
+    console.log('Returning output as the process is waiting for more input.');
+    requiresInput = true;
+  } else {
+    await sleep(200);
+    console.log('Fetching the logs.');
+    const logs = await container.logs({
+      stdout: true,
+      stderr: true
+    });
+    output = logs.toString('utf8');
+    requiresInput = false;
+  }
+
+  output = output.replace(regex, '');
+
+  return { output, requiresInput };
+};
+
+exports.runn00b = async (code) => {
   let output = '';
   let waitingForInput = false;
 
-  // Attach to the container to capture logs
+  const { tmpDir, filePath } = await createTempFile(code);
+
+  const container = await docker.createContainer({
+    Image: 'cpp-compiler11',
+    Tty: true,
+    Cmd: ['bash', '-c', `g++ -o program /usr/src/app/main.cpp && strace -o /tmp/strace.log ./program`],
+    HostConfig: {
+      Binds: [`${tmpDir}:/usr/src/app`]
+    },
+    OpenStdin: true,
+    StdinOnce: false,
+    Tty: true
+  });
+
   const stream = await container.attach({
     stream: true,
     stdin: true,
@@ -374,14 +612,11 @@ exports.runn00b = async (code) => {
   });
 
   await container.start();
-  console.log('Container started. Inspecting...');
-  inspect = await container.inspect();
-  console.log('After start state:', inspect.State.Status);
 
   const outputPromise = new Promise((resolve) => {
     stream.on('data', (chunk) => {
       output += chunk.toString('utf8');
-      console.log('Stream output:', chunk.toString('utf8')); // Log stream output
+      console.log('Stream output:', chunk.toString('utf8'));
     });
 
     stream.on('end', () => {
@@ -390,39 +625,52 @@ exports.runn00b = async (code) => {
     });
   });
 
-  // Function to check strace log for input waiting status
   const checkStraceLog = async () => {
-    while (true) {
-      await new Promise(resolve => setTimeout(resolve, 500)); // Wait for 1 second
-
-      const logContent = await execCommandInContainer(container, 'cat /tmp/strace.log');
-      if (logContent.includes('read(')) {
-        console.log('Process is waiting for input.');
-        waitingForInput = true;
+    while (!waitingForInput) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      const inspect = await container.inspect();
+      if (inspect.State.Status !== 'running') {
+        console.log('Container is not running.');
+        waitingForInput = false;
         return;
+      } else {
+        const logContent = await execCommandInContainer(container, 'cat /tmp/strace.log');
+        const lines = logContent.trim().split('\n');
+        const lastLine = lines[lines.length - 1];
+        if (lastLine.includes('read(0,' || lastLine.includes('EAGAIN'))) {
+          console.log('The last line of the log indicates the process might be waiting for input.');
+          waitingForInput = true;
+          return;
+        }
+        // console.log('Log content:', logContent);
+        // if (logContent.includes('read(0,') || logContent.includes('EAGAIN')) {
+        //   console.log('Process is likely waiting for input.');
+        //   waitingForInput = true;
+        //   return;
+        // }
       }
     }
   };
 
-  // Run the process activity check in parallel with the output promise
   await Promise.race([outputPromise, checkStraceLog()]);
 
-  if (waitingForInput) {
-    // Process is waiting for input; return output
-    console.log('Returning output as the process is waiting for input.');
+  await stream.destroy();
 
-    // Trim initialization message from output
-    output = output.replace(INITIALIZATION_MESSAGE, '');
-    return { output, container };
+  if (waitingForInput) {
+    console.log('Returning output as the process is waiting for more input.');
+    requiresInput = true;
+  } else {
+    await sleep(200);
+    console.log('Fetching the logs.');
+    const logs = await container.logs({
+      stdout: true,
+      stderr: true
+    });
+    output = logs.toString('utf8');
+    requiresInput = false;
   }
 
-  // If not waiting for input, final inspection
-  console.log('Final inspection...');
-  inspect = await container.inspect();
-  console.log('Final state:', inspect.State.Status);
-
-  // Trim initialization message from output
-  output = output.replace(INITIALIZATION_MESSAGE, '');
+  output = output.replace(regex, '');
 
   return { output, container };
 };
@@ -499,11 +747,101 @@ exports.runn00b = async (code) => {
 //   return { output, requiresInput };
 // };
 
+exports.runIsa = async (container, input) => {
+  let output = '';
+  let waitingForInput = false;
+  let requiresInput = true;
+
+  // Attach to the container to capture logs and send input
+  const stream = await container.attach({
+    stream: true,
+    stdin: true,
+    stdout: true,
+    stderr: true,
+    logs: true,
+    hijack: true
+  });
+
+  // Write input to the container and capture the timestamp
+  const inputTimestamp = Date.now();
+  await stream.write(input + '\n');
+  await stream.end(); // End the input stream immediately
+
+  // Function to capture container output
+  const captureOutput = new Promise((resolve) => {
+    stream.on('data', (chunk) => {
+      const chunkString = chunk.toString('utf8');
+      const timestamp = Date.now();
+      
+      // Only add output that comes after the input was sent
+      if (timestamp > inputTimestamp) {
+        const formattedChunk = `${chunkString}`;
+        output += formattedChunk;
+        console.log('Stream output:', formattedChunk); // Log stream output
+      }
+    });
+
+    stream.on('end', () => {
+      console.log('Stream ended');
+      resolve();
+    });
+
+    stream.on('error', (err) => {
+      console.error('Stream error:', err);
+      resolve(); // Resolve even if there's an error to proceed
+    });
+  });
+
+  // Function to monitor stack trace log
+  const monitorStackTrace = async () => {
+    while (!waitingForInput) {
+      await new Promise(resolve => setTimeout(resolve, 500)); // Check every 500ms
+      const inspect = await container.inspect();
+      if (inspect.State.Status !== 'running') {
+        console.log('Container is not running.');
+        return;
+      } else {
+        const logContent = await execCommandInContainer(container, 'cat /tmp/strace.log');
+        if (logContent.includes('read(0, ') || logContent.includes('EAGAIN')) {
+          console.log('Process is likely waiting for input.');
+          waitingForInput = true;
+          return;
+        }
+      }
+    }
+  };
+
+  // Start capturing output and monitoring stack trace concurrently
+  await Promise.all([captureOutput, monitorStackTrace()]);
+
+  console.log('yo' + output + 'yo');
+
+  stream.destroy();
+
+  if (waitingForInput) {
+    // Trim initialization message from output
+    output = output.replace(INITIALIZATION_MESSAGE, '');
+    console.log('Returning output as the process is waiting for more input.');
+    requiresInput = true;
+  } else {
+    console.log('Final inspection...');
+    const inspect = await container.inspect();
+    console.log('Final state:', inspect.State.Status);
+    requiresInput = false;
+  }
+
+  // Trim initialization message from output
+  output = output.replace(INITIALIZATION_MESSAGE, '');
+
+  return { output, requiresInput };
+};
+
 exports.runWithInput = async (container, input) => {
 
   let output = '';
   let waitingForInput = false;
   let requiresInput = true;
+  var outputList = [];
 
   // Attach to the container to capture logs and send input
   const stream = await container.attach({
@@ -519,14 +857,23 @@ exports.runWithInput = async (container, input) => {
   await stream.write(input + '\n');
   await stream.end(); // End the input stream immediately
 
-  await sleep(500);
+  let hey = await stream.pipe(process.stdout);
+  console.log('no: ', hey)
 
   // Function to capture container output
   const captureOutput = new Promise((resolve) => {
+
     stream.on('data', (chunk) => {
-      output += chunk.toString('utf8');
-      console.log('Stream output:', chunk.toString('utf8')); // Log stream output
+      const chunkString = chunk.toString('utf8');
+      outputList.push(chunkString);
+      console.log('Stream output:', chunkString); // Log stream output
+      console.log ('list: ', outputList);
     });
+
+    // stream.on('data', (chunk) => {
+    //   output += chunk.toString('utf8');
+    //   console.log('Stream output:', chunk.toString('utf8')); // Log stream output
+    // });
 
     stream.on('end', () => {
       console.log('Stream ended');
@@ -562,6 +909,10 @@ exports.runWithInput = async (container, input) => {
   await Promise.all([captureOutput, monitorStackTrace()]);
 
   if (waitingForInput) {
+
+    stream.destroy();
+
+    output = outputList[0];
     // Process is waiting for more input; return output
     console.log('Returning output as the process is waiting for more input.');
     requiresInput = true;
@@ -571,6 +922,9 @@ exports.runWithInput = async (container, input) => {
     return { output, requiresInput };
   }
 
+  stream.destroy();
+
+  output = outputList[0];
   // If not waiting for input, final inspection
   console.log('Final inspection...');
   const inspect = await container.inspect();
@@ -617,6 +971,218 @@ const execCommandInContainer = async (container, cmd) => {
     // return '';
     throw error;
   }
+};
+
+exports.runCPU = async (container, input, clearLogs = false) => {
+  let output = '';
+  let requiresInput = true;
+
+  // Clear logs if requested
+  if (clearLogs) {
+    try {
+      const containerName = container.id;
+      execSync(`docker logs ${containerName} --tail 0 > NUL 2>&1`);
+      console.log('Logs cleared for container:', containerName);
+    } catch (error) {
+      console.error('Error clearing logs:', error);
+    }
+  }
+
+  // Attach to the container to capture logs and send input
+  const stream = await container.attach({
+    stream: true,
+    stdin: true,
+    stdout: true,
+    stderr: true,
+    logs: true,
+    hijack: true
+  });
+
+  let inspect = await container.inspect();
+  console.log('Initial state:', inspect.State.Status);
+
+  // Write input to the container and capture the timestamp
+  const inputTimestamp = Date.now();
+  await stream.write(input + '\n');
+  await stream.end(); // End the input stream immediately
+
+  // Function to capture container output
+  const captureOutput = new Promise((resolve) => {
+    stream.on('data', (chunk) => {
+      const chunkString = chunk.toString('utf8');
+      const timestamp = Date.now();
+      
+      if (timestamp > inputTimestamp) {
+        const formattedChunk = `${chunkString}`;
+        output += formattedChunk;
+        console.log('Stream output:', formattedChunk);
+      }
+    });
+
+    stream.on('end', () => {
+      console.log('Stream ended');
+      resolve();
+    });
+
+    stream.on('error', (err) => {
+      console.error('Stream error:', err);
+      resolve();
+    });
+  });
+
+  // Function to monitor CPU usage
+  const monitorCPUUsage = async () => {
+    let stableCPUCount = 0;
+    while (true) {
+      await new Promise(resolve => setTimeout(resolve, 100)); // Check every 100ms
+      const stats = await container.stats({ stream: false });
+      const cpuDelta = stats.cpu_stats.cpu_usage.total_usage - stats.precpu_stats.cpu_usage.total_usage;
+      const systemDelta = stats.cpu_stats.system_cpu_usage - stats.precpu_stats.system_cpu_usage;
+      const cpuPercent = (cpuDelta / systemDelta) * stats.cpu_stats.online_cpus * 100;
+      
+      console.log(`Current CPU usage: ${cpuPercent.toFixed(3)}%`);
+
+      if (cpuPercent < 0.01) { // Consider CPU usage below 0.01% as idle
+        requiresInput = true;
+        return;
+        stableCPUCount++;
+        if (stableCPUCount >= 10) { // If CPU is stable for 1 second (10 * 100ms)
+          console.log('CPU usage stable at near 0%. Assuming process is waiting for input.');
+          requiresInput = true;
+          return;
+        }
+      } else {
+        stableCPUCount = 0;
+      }
+
+      const inspect = await container.inspect();
+      if (inspect.State.Status !== 'running') {
+        console.log('Container is not running. Process has likely completed.');
+        requiresInput = false;
+        return;
+      }
+    }
+  };
+
+  // Start capturing output and monitoring CPU usage concurrently
+  await Promise.all([captureOutput, monitorCPUUsage()]);
+
+  console.log('Final inspection...');
+  const finalInspect = await container.inspect();
+  console.log('Final state:', finalInspect.State.Status);
+
+  // Trim initialization message from output
+  output = output.replace(INITIALIZATION_MESSAGE, '');
+
+  return { output, requiresInput };
+};
+
+exports.runNewIsa = async (container, input, clearLogs = false) => {
+  let output = '';
+  let requiresInput = false;
+
+  // Clear logs if requested
+  if (clearLogs) {
+    try {
+      const containerName = container.id;
+      execSync(`docker logs ${containerName} --tail 0 > NUL 2>&1`);
+      console.log('Logs cleared for container:', containerName);
+    } catch (error) {
+      console.error('Error clearing logs:', error);
+    }
+  }
+
+  // Attach to the container to capture logs and send input
+  const stream = await container.attach({
+    stream: true,
+    stdin: true,
+    stdout: true,
+    stderr: true,
+    logs: true,
+    hijack: true
+  });
+
+  let inspect = await container.inspect();
+  console.log('Initial state:', inspect.State.Status);
+
+  // Write input to the container and capture the timestamp
+  const inputTimestamp = Date.now();
+  await stream.write(input + '\n');
+  await stream.end(); // End the input stream immediately
+
+  // Function to capture container output
+  const captureOutput = new Promise((resolve) => {
+    stream.on('data', (chunk) => {
+      const chunkString = chunk.toString('utf8');
+      const timestamp = Date.now();
+      
+      if (timestamp > inputTimestamp) {
+        const formattedChunk = `${chunkString}`;
+        output += formattedChunk;
+        console.log('Stream output:', formattedChunk);
+      }
+    });
+
+    stream.on('end', () => {
+      console.log('Stream ended');
+      resolve();
+    });
+
+    stream.on('error', (err) => {
+      console.error('Stream error:', err);
+      resolve();
+    });
+  });
+
+  // Function to monitor process state
+  const monitorProcessState = async () => {
+    while (true) {
+      await new Promise(resolve => setTimeout(resolve, 100)); // Check every 100ms
+
+      const processInfo = await execCommandInContainer(container, 'ps -o pid,state --no-headers');
+      console.log('Process info:', processInfo);
+
+      const lines = processInfo.trim().split('\n');
+      if (lines.length > 1) {
+        const [pid, state] = lines[1].trim().split(/\s+/);
+        console.log(`PID: ${pid}, State: ${state}`);
+
+        if (state === 'S' || state === 'D') {
+          console.log('Process is in sleep state. Likely waiting for input.');
+          requiresInput = true;
+          return;
+        } else if (state === 'Z' || state === 'X' || state === 'T') {
+          console.log('Process has stopped or is a zombie. Execution likely complete.');
+          requiresInput = false;
+          return;
+        }
+        // If process state is 'R' (running), continue monitoring
+      } else {
+        console.log('No user processes found. Execution likely complete.');
+        requiresInput = false;
+        return;
+      }
+
+      const inspect = await container.inspect();
+      if (inspect.State.Status !== 'running') {
+        console.log('Container is not running. Process has completed.');
+        requiresInput = false;
+        return;
+      }
+    }
+  };
+
+  // Start capturing output and monitoring process state concurrently
+  await Promise.all([captureOutput, monitorProcessState()]);
+
+  console.log('Final inspection...');
+  const finalInspect = await container.inspect();
+  console.log('Final state:', finalInspect.State.Status);
+
+  // Trim initialization message from output
+  output = output.replace(INITIALIZATION_MESSAGE, '');
+
+  return { output, requiresInput };
 };
 
 exports.runTrial = async (code) => {

@@ -1,18 +1,31 @@
 exports.codeRequiresInput = (code) => {
-  const inputPatterns = [
-      /std\s*::\s*cin/,
-      /cin\s*>>/,
-      /std\s*::\s*getline/,
-      /scanf\s*\(/,
-      /fgets\s*\(/,
-      /istream\s*>>/,
-      /istream\s*::\s*read/,
-      /istream\s*::\s*get/,
-      /istream\s*::\s*ignore/,
-      />>\s*[\w<>\s]*\s*\(/ 
+  const inputKeywords = [
+      'cin',
+      'getline',
+      'scanf',
+      'fgets',
+      'istream >>',
+      'istream::read',
+      'istream::get',
+      'istream::ignore'
   ];
-  return inputPatterns.some(pattern => pattern.test(code));
+  return inputKeywords.some(keyword => code.includes(keyword));
 };
+// exports.codeRequiresInput = (code) => {
+//   const inputPatterns = [
+//       /std\s*::\s*cin/,
+//       /cin\s*>>/,
+//       /std\s*::\s*getline\s*\(/,
+//       /scanf\s*\(/,
+//       /fgets\s*\(/,
+//       /istream\s*>>/,
+//       /istream\s*::\s*read\s*\(/,
+//       /istream\s*::\s*get\s*\(/,
+//       /istream\s*::\s*ignore\s*\(/,
+//       />>\s*[\w<>\s]*\s*\(/
+//   ];
+//   return inputPatterns.some(pattern => pattern.test(code));
+// };
 // exports.codeRequiresInput = (code) => {
 //     const inputPatterns = [
 //       /std::cin/,
