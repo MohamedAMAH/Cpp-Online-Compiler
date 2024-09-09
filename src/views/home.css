@@ -15,10 +15,11 @@
   justify-content: space-between;
   flex-grow: 0;
   flex-shrink: 0;
+  background-color: #FFFFFF;
 }
 .home-title-container {
   flex: 0 0 auto;
-  width: 20%;
+  width: 50%;
   height: 100%;
   display: flex;
   align-items: flex-start;
@@ -28,17 +29,17 @@
   height: 24px;
   align-self: center;
   object-fit: cover;
-  margin-left: 40px;
+  margin-left: 6%;
 }
 .home-text1 {
   font-size: 26px;
   align-self: center;
   font-family: "Relative-Bold";
-  margin-left: 4%;
+  margin-left: 2%;
 }
 .home-about-us-container {
   flex: 0 0 auto;
-  width: 20%;
+  width: 50%;
   height: 100%;
   display: flex;
   align-items: flex-start;
@@ -48,8 +49,9 @@
   font-size: 18px;
   align-self: center;
   font-family: "Relative-Bold";
-  margin-left: 40%;
+  margin-left: 75%;
   border-width: 2px;
+  background-color: #FFFFFF;
 }
 .home-body-container {
   width: 100%;
@@ -107,16 +109,6 @@
   margin-right: 1.2%;
   background-color: #ecfdf3;
 }
-/* .home-textarea1 {
-  width: 100%;
-  height: 100%;
-  resize: none;
-  outline: none;
-  box-shadow: none;
-  text-align: left;
-  border-width: 0px;
-  border-radius: 0px;
-} */
 .home-console-container {
   flex: 0 0 auto;
   width: 50%;
@@ -127,10 +119,12 @@
   align-self: flex-start;
   align-items: flex-start;
   border-color: var(--dl-color-theme-neutral-dark);
-  border-width: 2pxx;
+  border-width: 2px;
   flex-direction: column;
   justify-content: flex-start;
   border-left-width: 2px;
+  border-right-width: 0px;
+  border-top-width: 0px;
 }
 .home-container3 {
   flex: 0 0 auto;
@@ -190,15 +184,20 @@
   background-color: #2e2e2e !important; /* Dark grey background for the active line */
 }
 
+.monaco-editor {
+  background-color: #ffffff !important; /* Light gray background */
+}
+
+.monaco-editor .margin {
+  background-color: #ffffff !important; /* Match the editor background */
+}
+
 .terminal-container {
   width: 100%;
   height: 100%;
+  font-weight: bold;
   background-color: #444444;
   overflow-y: hidden; /* Hide scrollbar by default */
-}
-
-.terminal-container:hover {
-  overflow-y: auto; /* Show scrollbar on hover */
 }
 
 .xterm {
@@ -209,11 +208,9 @@
   overflow-y: hidden; /* Ensures no scrollbar is visible by default */
 }
 
-.xterm .xterm-viewport::-webkit-scrollbar {
-  width: 0px; /* Removes scrollbar width */
-  background: transparent; /* Optional: Transparent background */
-}
-
-.xterm-viewport {
-  overflow-y: hidden; /* Hides scrollbar unless hovering */
+.home-button1:hover, .home-button2:hover, .home-button3:hover {
+  background-color: #d1d1d1; /* Change this to your desired hover color */
+  cursor: pointer;
+  border-color: #000000; /* Optional: change border color on hover */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Optional: add shadow for effect */
 }

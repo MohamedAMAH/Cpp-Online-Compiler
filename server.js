@@ -1,25 +1,13 @@
 const express = require('express');
 const path = require('path');
 const compilerRoutes = require('./src/routes/compilerRoutes');
-const cookieParser = require('cookie-parser'); // Import cookie-parser
-const session = require('express-session');
+const { cleanupInactiveContainers } = require('./src/services/containerCleanup');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 // Middleware to parse JSON bodies
 app.use(express.json());
-
-// Middleware to parse cookies
-// app.use(cookieParser()); // Add cookie-parser middleware
-
-// // Session middleware
-// app.use(session({
-//   secret: 'online-cpp-compiler', // Replace with a strong secret
-//   resave: false,
-//   saveUninitialized: true,
-//   cookie: { secure: false } // Set to true if using HTTPS
-// }));
 
 // Serve the React.js frontend
 app.use(express.static(path.join(__dirname, 'build')));
@@ -34,4 +22,5 @@ app.get('*', (req, res) => {
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
+  cleanupInactiveContainers();
 });
